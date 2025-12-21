@@ -1,0 +1,5 @@
+{
+  "name": "Asistente de Matrícula LILEI - UNAD",
+  "description": "Una aplicación inteligente para estudiantes de la Licenciatura en Lenguas Extranjeras (LILEI) que analiza el progreso académico a partir de un PDF y recomienda la ruta de matrícula óptima.",
+  "requestFramePermissions": []
+}
