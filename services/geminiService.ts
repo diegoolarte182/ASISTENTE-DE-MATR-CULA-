@@ -1,21 +1,10 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { StudentCourse, CourseStatus } from "../types";
 
-// ✅ Vite expone variables SOLO si empiezan con VITE_
-const apiKey = import.meta.env.VITE_API_KEY as string | undefined;
-
-// ✅ Inicializa solo si hay key
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-
-function ensureAI() {
-  if (!ai) {
-    // Mensaje claro para consola + UI
-    throw new Error(
-      "Falta la variable VITE_API_KEY. Configúrala en Vercel (Project → Settings → Environment Variables) y redeploy."
-    );
-  }
-  return ai;
-}
+// Initialize using process.env.API_KEY as per guidelines.
+// This variable is injected automatically in the environment.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const parseAcademicProgress = async (text: string): Promise<StudentCourse[]> => {
   const prompt = `
@@ -32,8 +21,7 @@ ${text}
 `;
 
   try {
-    const client = ensureAI();
-    const response = await client.models.generateContent({
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
@@ -56,10 +44,16 @@ ${text}
       }
     });
 
-    return JSON.parse(response.text || "[]");
+    let jsonString = response.text || "[]";
+    
+    // Sometimes the model wraps JSON in markdown blocks despite responseMimeType
+    if (jsonString.includes("```")) {
+      jsonString = jsonString.replace(/^```(json)?\n/, "").replace(/\n```$/, "");
+    }
+
+    return JSON.parse(jsonString);
   } catch (error) {
     console.error("Error parsing progress:", error);
-    // ✅ si falla, no tires toda la app: devuelve vacío
     return [];
   }
 };
@@ -72,8 +66,7 @@ NO uses Markdown complejo (sin # o ***), solo texto plano fluido y motivador. M�
 `;
 
   try {
-    const client = ensureAI();
-    const response = await client.models.generateContent({
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt
     });
@@ -81,6 +74,6 @@ NO uses Markdown complejo (sin # o ***), solo texto plano fluido y motivador. M�
     return response.text || "No hay recomendaciones disponibles en este momento.";
   } catch (error) {
     console.error("Error generating recommendations:", error);
-    return "No se pudo generar la recomendación. Revisa la configuración de la API Key.";
+    return "No se pudo generar la recomendación.";
   }
 };
