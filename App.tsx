@@ -63,67 +63,96 @@ const App: React.FC = () => {
     }
   ];
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+ const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
 
-    setIsProcessing(true);
-    setProcessingStep('Iniciando lectura del documento...');
-    
-    try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        
-        // @ts-ignore
-        if (!window.pdfjsLib) {
-          alert("La librería de PDF no se ha cargado correctamente. Por favor recarga la página.");
-          setIsProcessing(false);
-          return;
-        }
+  setIsProcessing(true);
+  setProcessingStep("Iniciando lectura del documento...");
 
-        // @ts-ignore
-        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        
-        setProcessingStep(`Extrayendo texto de ${pdf.numPages} páginas...`);
-        let fullText = '';
-        
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          // Improve extraction by adding newlines to separate potential rows/sections
-          const pageText = content.items.map((item: any) => item.str).join(' ');
-          fullText += pageText + "\n";
-        }
+  try {
+    const reader = new FileReader();
 
-        // Validation for scanned PDFs or empty files
-        if (fullText.trim().length < 50) {
-          alert("El documento parece estar vacío o es una imagen escaneada. Por favor sube el PDF original descargado de la plataforma (con texto seleccionable).");
-          setIsProcessing(false);
-          return;
-        }
-        
-        setProcessingStep('Analizando historial con IA...');
-        const extractedCourses = await parseAcademicProgress(fullText);
-        
-        if (!extractedCourses || extractedCourses.length === 0) {
-          alert("No se pudieron identificar cursos en el documento. Verifica que sea el 'Registro de Avance Individual' oficial de la UNAD.");
-          setIsProcessing(false);
-          return;
-        }
+    reader.onload = async (e) => {
+      const arrayBuffer = e.target?.result as ArrayBuffer;
 
-        setStudentProgress(extractedCourses);
-        setShowNotification(`¡Análisis completado! ${extractedCourses.length} cursos identificados.`);
-        setTimeout(() => setShowNotification(null), 5000);
+      // @ts-ignore
+      if (!window.pdfjsLib) {
+        alert("La librería de PDF no se ha cargado correctamente. Por favor recarga la página.");
         setIsProcessing(false);
-      };
-      reader.readAsArrayBuffer(file);
-    } catch (err) {
-      console.error(err);
-      alert("Error al procesar el archivo. Intenta nuevamente o usa otro archivo.");
+        return;
+      }
+
+      // @ts-ignore
+      const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+      setProcessingStep(`Extrayendo texto de ${pdf.numPages} páginas...`);
+
+      let fullText = "";
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+
+        // ✅ Extracción robusta: conserva líneas usando coordenada Y
+        const items = content.items as any[];
+
+        const linesMap = new Map<number, string[]>();
+        for (const it of items) {
+          const y = Math.round(it.transform?.[5] ?? 0);
+          const arr = linesMap.get(y) ?? [];
+          arr.push(it.str);
+          linesMap.set(y, arr);
+        }
+
+        const sortedYs = Array.from(linesMap.keys()).sort((a, b) => b - a);
+
+        const pageText = sortedYs
+          .map((y) => (linesMap.get(y) ?? []).join(" ").replace(/\s+/g, " ").trim())
+          .filter(Boolean)
+          .join("\n");
+
+        fullText += pageText + "\n\n";
+      }
+
+      // ✅ Validación de PDF escaneado / sin texto real
+      if (fullText.trim().length < 80) {
+        alert(
+          "El documento parece estar vacío o es una imagen escaneada. " +
+          "Por favor sube el PDF original descargado de la UNAD (con texto seleccionable)."
+        );
+        setIsProcessing(false);
+        return;
+      }
+
+      setProcessingStep("Analizando historial con IA...");
+      const extractedCourses = await parseAcademicProgress(fullText);
+
+      if (!extractedCourses || extractedCourses.length === 0) {
+        alert(
+          "No se detectó el listado de cursos en el texto extraído. " +
+          "Esto puede pasar si el PDF está escaneado, protegido o si el texto se extrajo sin estructura. " +
+          "Prueba descargar el RAI otra vez desde la UNAD o sube otra versión."
+        );
+        setIsProcessing(false);
+        return;
+      }
+
+      setStudentProgress(extractedCourses);
+      setShowNotification(`¡Análisis completado! ${extractedCourses.length} cursos identificados.`);
+      setTimeout(() => setShowNotification(null), 5000);
+
       setIsProcessing(false);
-    }
-  };
+    };
+
+    reader.readAsArrayBuffer(file);
+  } catch (err) {
+    console.error(err);
+    alert("Error al procesar el archivo. Intenta nuevamente o usa otro archivo.");
+    setIsProcessing(false);
+  }
+};
+
 
   const handleNewAnalysis = () => {
     if (window.confirm("¿Deseas realizar un nuevo análisis? El informe actual se reemplazará.")) {
