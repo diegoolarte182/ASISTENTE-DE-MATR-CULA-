@@ -803,58 +803,6 @@ const App: React.FC = () => {
                 </p>
               </div>
            </div>
-           
-           {/* Estado de Rutas Formativas */}
-           <div className="mt-12 bg-white p-10 rounded-[3rem] border-4 border-slate-50 space-y-10 break-inside-avoid">
-              <h2 className="text-2xl font-black text-indigo-900 uppercase tracking-tighter border-b-2 border-slate-100 pb-4">Estado de Rutas Formativas</h2>
-              
-              <div className="grid grid-cols-2 gap-12">
-                 {/* Práctica Pedagógica */}
-                 <div>
-                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Ruta de Práctica Pedagógica</h3>
-                    <div className="space-y-4">
-                       {practiceStages.map((stage, i) => {
-                          const approvedCount = stage.courses.filter(c => getCourseStatus(c) === CourseStatus.APPROVED || getCourseStatus(c) === CourseStatus.HOMOLOGATED).length;
-                          const total = stage.courses.length;
-                          const perc = Math.round((approvedCount / total) * 100);
-                          return (
-                             <div key={i} className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <div className="flex justify-between items-center mb-2">
-                                   <span className="text-[10px] font-black uppercase text-slate-700">{stage.name}</span>
-                                   <span className="text-[10px] font-black text-indigo-600">{perc}%</span>
-                                </div>
-                                <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                   <div className="bg-indigo-600 h-full" style={{ width: `${perc}%` }}></div>
-                                </div>
-                             </div>
-                          );
-                       })}
-                    </div>
-                 </div>
-
-                 {/* Lengua Inglesa */}
-                 <div>
-                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Ruta de Lengua Inglesa (MCER)</h3>
-                    <div className="bg-indigo-50 p-6 rounded-[2rem] text-center border border-indigo-100">
-                       <p className="text-[10px] uppercase tracking-widest text-indigo-400 mb-2">Nivel Estimado</p>
-                       <p className="text-5xl font-black text-indigo-900">{cefr.current}</p>
-                       <p className="text-[9px] uppercase tracking-tight text-indigo-800 mt-2 font-bold px-4">
-                          {cefr.current === 'C1' ? 'Nivel Máximo Alcanzado' : `Siguiente Nivel: ${cefr.pending[0]?.id || 'C1'}`}
-                       </p>
-                    </div>
-                    <div className="mt-4 text-[9px] font-black text-slate-400 uppercase tracking-tight text-center">
-                       * Estimación basada en cursos aprobados.
-                    </div>
-                 </div>
-              </div>
-           </div>
-
-           {/* Nota Aclaratoria */}
-           <div className="mt-16 text-center">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-t border-slate-100 pt-8">
-                “Este informe es una herramienta de orientación académica y no reemplaza la asesoría oficial ni la verificación de la oferta académica vigente.”
-              </p>
-           </div>
         </div>
 
         {/* Short Enrollment PDF Template */}
