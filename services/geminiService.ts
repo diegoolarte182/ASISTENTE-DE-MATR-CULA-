@@ -1,26 +1,39 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { StudentCourse, CourseStatus } from "../types";
 
-// Always use the process.env.API_KEY directly for initialization.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// ✅ Vite expone variables SOLO si empiezan con VITE_
+const apiKey = import.meta.env.VITE_API_KEY as string | undefined;
+
+// ✅ Inicializa solo si hay key
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+
+function ensureAI() {
+  if (!ai) {
+    // Mensaje claro para consola + UI
+    throw new Error(
+      "Falta la variable VITE_API_KEY. Configúrala en Vercel (Project → Settings → Environment Variables) y redeploy."
+    );
+  }
+  return ai;
+}
 
 export const parseAcademicProgress = async (text: string): Promise<StudentCourse[]> => {
   const prompt = `
-    Analiza el siguiente texto extraído de un historial académico de la UNAD (Registro de Avance Individual).
-    Extrae todos los cursos que el estudiante ha tomado.
-    Para cada curso determina: nombre, código, créditos y su estado.
-    
-    IMPORTANTE: 
-    - Si el estado es 'MATR', mapealo como 'En curso'.
-    - Los estados permitidos son: 'Aprobado', 'En curso', 'Reprobado', 'Homologado', 'Pendiente'.
-    
-    Texto del PDF:
-    ${text}
-  `;
+Analiza el siguiente texto extraído de un historial académico de la UNAD (Registro de Avance Individual).
+Extrae todos los cursos que el estudiante ha tomado.
+Para cada curso determina: nombre, código, créditos y su estado.
+
+IMPORTANTE:
+- Si el estado es 'MATR', mapealo como 'En curso'.
+- Los estados permitidos son: 'Aprobado', 'En curso', 'Reprobado', 'Homologado', 'Pendiente'.
+
+Texto del PDF:
+${text}
+`;
 
   try {
-    const response = await ai.models.generateContent({
+    const client = ensureAI();
+    const response = await client.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
@@ -46,23 +59,28 @@ export const parseAcademicProgress = async (text: string): Promise<StudentCourse
     return JSON.parse(response.text || "[]");
   } catch (error) {
     console.error("Error parsing progress:", error);
-    throw error;
+    // ✅ si falla, no tires toda la app: devuelve vacío
+    return [];
   }
 };
 
 export const generateCourseDescription = async (courseName: string): Promise<string> => {
   const prompt = `
-    Eres un tutor académico de la UNAD para el programa LILEI. 
-    Para el curso "${courseName}", proporciona 3 consejos de estudio altamente estratégicos y 1 frase sobre su relevancia en el perfil del egresado. 
-    NO uses Markdown complejo (sin # o ***), solo texto plano fluido y motivador. Máximo 100 palabras.
-  `;
+Eres un tutor académico de la UNAD para el programa LILEI.
+Para el curso "${courseName}", proporciona 3 consejos de estudio altamente estratégicos y 1 frase sobre su relevancia en el perfil del egresado.
+NO uses Markdown complejo (sin # o ***), solo texto plano fluido y motivador. Máximo 100 palabras.
+`;
+
   try {
-    const response = await ai.models.generateContent({
+    const client = ensureAI();
+    const response = await client.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt
     });
+
     return response.text || "No hay recomendaciones disponibles en este momento.";
   } catch (error) {
-    return "Error generando recomendaciones académicas.";
+    console.error("Error generating recommendations:", error);
+    return "No se pudo generar la recomendación. Revisa la configuración de la API Key.";
   }
 };
